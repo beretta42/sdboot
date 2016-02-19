@@ -11,7 +11,7 @@ boot.dsk: boot.bin
 
 
 boot.bin: boot.asm sd.asm
-	lwasm -m boot.map -o boot.bin $^
+	lwasm -mboot.map -oboot.bin boot.asm
 
 
 clean: 

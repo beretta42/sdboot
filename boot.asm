@@ -61,7 +61,7 @@ start
 	clr	LSN
 	clr	LSN+1
 	clr	LSN+2
-	;; Test for CCPT here !!!!
+	;; Test for CCPT
 	jsr	ccpttest
 	;; try to mount os9 filesystem
 	jsr	getlsn
@@ -94,25 +94,26 @@ start
 	clrb			; and round it down to near page boundary
 	tfr	d,x		; X = cpu load address
 	pshs	x		; push onto stack ( cpustart )
-	cmpx	#$4000		; cant go lower
+	cmpx	#$2000		; cant go lower
 	lblo	toobig
-	;; set mmu
+	;; set calc init mmu for bounce routine
 	lsra			; make A = mmu reg no
 	lsra			; take top three bits
 	lsra			;
 	lsra			;
 	lsra			;
 	pshs	a		; push start mmu no ( cpustart mmustart )
-	ldy	#$ffa0
-	leay	a,y		; Y = beginning mmu
-	ldb	#1		; 1 is first os9 system block
-a@	stb	,y+		; store bank no in mmu
-	cmpy	#$ffa7		; did we move to the last mmu block
-	beq	b@		; yes, then quit looping
-	incb			; increment bank no
-	bra	a@		; repeat	
+	;; calc no of contigeous block for os9boot loading routine
+	ldb	#7		; A = no of contigeous block
+	subb	,s		;
+	stb	blocks		; save for loading routine
+	;; calc beginning cpu address
+	ldd	1,s		; D = cpu start
+	anda	#$1f
+	addd	#$4000		; adjust for loader
+	std	cptr
 	;; copy os9boot into memory
-b@	jsr	fload		; load os9boot into memory
+b@	jsr	testload	; load os9boot into memory
 	jsr	putCR
 	;; open krn file
 	ldx	#str1
@@ -272,7 +273,41 @@ b@	ldb	#$3f		; and mmu7 is always $3f
 bounceend
 
 
-	
+
+
+;;; Read os9 file into memory
+;;;   takes: open os9 file,
+testload
+	pshs	d,x
+	ldb	#1		; set initial bank to 1
+	stb	block		;
+	stb	$ffa2		;
+	;; loop until EOF
+a@	ldx	cptr		; get block pointer
+	jsr	readb		; read a byte
+	bcs	out@		; done!
+	stb	,x+
+	stx	cptr
+	;; check for end of bank
+	cmpx	#$6000
+	bne	a@
+	;; end of bank
+	ldd	#$4000		; reset block pointer
+	std	cptr
+	dec	blocks		; any more blocks left
+	bne	b@
+	;; no more blocks left set $3f
+	ldb	#$3f
+	bra	c@
+b@	inc	block
+	ldb	block
+c@	stb	$ffa2		; set mmu
+	bra	a@
+out@	puls	d,x,pc
+cptr	.dw	0		; pointer in block (boot cpu address)
+blocks	.db	0		; number of regular contigeous blocks
+block	.db	0		; current block number
+
 ;;; Read file into memory
 ;;;   takes: X = address to load, file opened.
 ;;;   modifies: nothing

@@ -1,0 +1,7 @@
+
+
+
+	export DPTR		; uint16 data address
+	export LSN		; uint24 LSN
+	export SMALL		; int8:  0=512B read, 1=256B read, -1=256B 2nd 1/2 read
+	export ll_read		; call to do a read with above set.

@@ -7,8 +7,10 @@
 ;;;  To use Run-Time:
 ;;;    * load up the public interface variables, call ll_read
 ;;;    * LSN address is always in 512B sectors nos.
-;;;   
-	
+;;;
+
+
+
 EIO		equ     1	; Error on Read
 EWP		equ	2	; Error on Write Protect
 ENR		equ	3	; Error on Not Ready
@@ -278,20 +280,20 @@ b@   	lda     SPIDAT,x
 
 RETOK	ldd	#$0000		; return the disaster of No Error
 	clr	SPICTRL,x
-	andcc	#^IntMasks
+*	andcc	#^IntMasks
 	clra
 	rts
-	
+
 WPERR	ldd	#$0000+EWP
 	bra	a@
 IOERR
 	ldd	#$0000+EIO
 	bra	a@
 NOTRDY
-	ldd     #$0000+ENR         
+	ldd     #$0000+ENR
 a@
 	sta     SPICTRL,x       ; Set the hardware
-	andcc   #^IntMasks      ; Enable interrupts
+*	andcc   #^IntMasks      ; Enable interrupts
 	coma                    ; Set Carry
 	rts
 

@@ -8,6 +8,7 @@ boot.dsk: boot.bin
 	rm -f boot.dsk
 	decb dskini boot.dsk
 	decb copy -b -2 boot.bin boot.dsk,BOOT.BIN
+	decb copy -a -0 -l AUTOEXEC.BAS boot.dsk,AUTOEXEC.BAS
 
 
 boot.bin: boot.asm sd.asm

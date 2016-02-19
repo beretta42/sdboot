@@ -10,6 +10,7 @@ STACKB	equ	$3000		; bottom of stack
 DBUF0	equ	$600		; we'll borrow some memory from basic
 DBUF1	equ	$700		; another buffer
 SCRPTR	equ	$0002		; point to the os screen pointer
+BOUNCE	equ	$1000		; a safe place to bounce to os9
 
 DD.BIT	equ	$6		; 2B no of sectors per cluster
 DD.NAM  equ	$1f		; 32B volume name field
@@ -90,16 +91,18 @@ start
 	std	ksize		;
 	ldd	#$f000		; f000 - fcount = start address
 	subd	fcount		;
-	clrb			; and round it down
+	clrb			; and round it down to near page boundary
 	tfr	d,x		; X = cpu load address
+	pshs	x		; push onto stack ( cpustart )
 	cmpx	#$4000		; cant go lower
 	lblo	toobig
 	;; set mmu
-	lsra
-	lsra
-	lsra
-	lsra
-	lsra			; A = mmu bank no
+	lsra			; make A = mmu reg no
+	lsra			; take top three bits
+	lsra			;
+	lsra			;
+	lsra			;
+	pshs	a		; push start mmu no ( cpustart mmustart )
 	ldy	#$ffa0
 	leay	a,y		; Y = beginning mmu
 	ldb	#1		; 1 is first os9 system block
@@ -139,14 +142,19 @@ b@	jsr	fload		; load os9boot into memory
 	;; set gime mirror
 	ldx	#$90
 	jsr	gime
+	;; copy bounce routine down
+	ldx	#bounce
+	ldu	#BOUNCE
+	ldb	#bounceend-bounce
+c@	lda	,x+
+	sta	,u+
+	decb
+	bne	c@
 	;; jump to OS9
 	ldx	#str2
 	jsr	putscr
-	ldx	$f009		; KRN relative start address
-	leax	$f000,x		; make it absolute
-	ldu	#ksize		; U = ptr to os9boot size
-	orcc	#$50
-	jmp	,x		; jump to kernel (bye!)
+	jmp	BOUNCE
+
 	
 iloop	bra	iloop
 
@@ -240,8 +248,29 @@ table@	.dw	$6c00
 	.db	$00
 
 ;;; This bounce routine gets copied down into low memory
-;;;   is completes the memory map
-bounce
+;;;   is completes the memory map.  Plz jump to me.
+bounce			      ; ( cpustart mmustart )
+	;; setup mmu to how os9 expects it
+	clr	$ffa0		; phys block 0 is always mapped to $0000
+	puls	a		; get mmu start ( cpustart )
+	ldy	#$ffa0
+	leay	a,y		; Y = beginning mmu
+	ldb	#1		; 1 is first os9 system block
+a@	stb	,y+		; store bank no in mmu
+	cmpy	#$ffa7		; did we move to the last mmu block
+	beq	b@		; yes, then quit looping
+	incb			; increment bank no
+	bra	a@		; repeat	
+b@	ldb	#$3f		; and mmu7 is always $3f
+	stb	,y
+	;; find and jump to KRN module
+	ldx	$f009		; KRN relative start address
+	leax	$f000,x		; make it absolute
+	ldu	#ksize		; U = ptr to os9boot size
+	orcc	#$50		; really, really turn off interrupts
+	jmp	,x		; jump to kernel (bye!)
+bounceend
+
 
 	
 ;;; Read file into memory

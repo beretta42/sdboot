@@ -3,14 +3,21 @@
 ;;;
 ;;;
 
+
+	include "sd.def"
+
+	export	prestart
+
+	import	start.bss
+	import  length.bss
+	
 CR	equ	13
 SP	equ	32
 	
-STACKB	equ	$3000		; bottom of stack
 DBUF0	equ	$600		; we'll borrow some memory from basic
 DBUF1	equ	$700		; another buffer
 SCRPTR	equ	$0002		; point to the os screen pointer
-BOUNCE	equ	$1000		; a safe place to bounce to os9
+
 
 DD.BIT	equ	$6		; 2B no of sectors per cluster
 DD.NAM  equ	$1f		; 32B volume name field
@@ -18,23 +25,33 @@ DD.DIR	equ	$8		; 3B descriptor cluster for root dir
 
 FD.SIZ	equ	$9		; 4B size of file in bytes
 	
+
+	.area	.bss
+root	rmb	3		; 3b lsn of root dir
+	;; FCB - vars needed to control file access.
+sptr	rmb	2		; ptr to current segment
+dptr	rmb	2		; ptr to data buffer
+bcount	rmb	2		; number of bytes left in buffer
+fcounth	rmb	2		; number of bytes left in file (high word)
+fcount 	rmb	2		; number of bytes left in file (low word)
+cptr	rmb	2		; pointer in block (boot cpu address)
+blocks	rmb	1		; number of regular contigeous blocks
+block	rmb	1		; current block number
+dirbuf	rmb	32		;
+ksize	rmb	2		; "stacked" size of os9 boot file
+offset	rmb	3		; 3B offset of root partition
+stack1	rmb	64
+stackb
+
+	.area	bounce
+BOUNCE	rmb	255
 	
-	org	$2000		; sit low
+	.area	.code
 prestart
 	jmp	start		; me first, but jump over DATA
 
-root	.db	0,0,0		; 3b lsn of root dir
-	;; FCB - vars needed to control file access.
-sptr	.dw	0		; ptr to current segment
-dptr	.dw	0		; ptr to data buffer
-bcount	.dw	0		; number of bytes left in buffer
-fcounth	.dw	0		; number of bytes left in file (high word)
-fcount 	.dw	0		; number of bytes left in file (low word)
-	;; and a buffer for directory entries
-dirbuf	rmb	32		;
 BOOT	fcn	"OS9Boot"
 KRN	fcn	"ccbkrn"
-ksize	.dw	0		; "stacked" size of os9 boot file
 str0	fcn	"Loading OS9Boot"
 str1	fcn	"Loading ccbkrn"
 str2	fcn	"Xfr Control to KRN..."
@@ -43,11 +60,17 @@ str4	fcn	"Vol Name: "
 
 start
 	orcc	#$50		; shut off interrupts
-	lds	#STACKB		; set stack
-	ldx	#$ff90		; setup gimme
-	jsr	gime		;
 	clr	$ffa0		; set mmu bank 0 to phys 0
 	clr	$ffdf		; set SAM RAM mode
+	;; clear ram vars
+	ldx	#start.bss
+a@	clr	,x+
+	cmpx	#(start.bss+length.bss)
+	bne	a@
+	;; 
+	lds	#stackb		; set stack
+	ldx	#$ff90		; setup gimme
+	jsr	gime		;
 	;; setup screen
 	jsr	scrSetup	; setup screen
 	ldx	#str3		; print banner
@@ -143,7 +166,7 @@ b@	jsr	testload	; load os9boot into memory
 	;; set gime mirror
 	ldx	#$90
 	jsr	gime
-	;; copy bounce routine down
+	;; copy bounce routine down to RAM
 	ldx	#bounce
 	ldu	#BOUNCE
 	ldb	#bounceend-bounce
@@ -304,9 +327,6 @@ b@	inc	block
 c@	stb	$ffa2		; set mmu
 	bra	a@
 out@	puls	d,x,pc
-cptr	.dw	0		; pointer in block (boot cpu address)
-blocks	.db	0		; number of regular contigeous blocks
-block	.db	0		; current block number
 
 ;;; Read file into memory
 ;;;   takes: X = address to load, file opened.
@@ -491,6 +511,21 @@ cpy3
 	stb	,u
 	puls	d,x,u,pc
 
+	
+;;; Add 3 byte value store result in X ptr
+;;;   takes: X = 3B ptr, U = 3B ptr
+;;;   modifies: nothing
+add3
+	pshs	d
+	ldd	1,u
+	addd	1,x
+	std	1,x
+	ldb	,u
+	adcb	,x
+	stb	,x
+	puls	d,pc
+	
+
 
 ;;; increment 3 byte value by one
 ;;;  takes: X = ptr to 3 bytes
@@ -519,6 +554,9 @@ getlsn
 	bcc	a@
 	negb
 a@	stb	SMALL
+	ldx	#LSN		; add partition offset
+	ldu	#offset
+	jsr	add3
 	jsr	ll_read
 	puls	b,x,pc
 	
@@ -656,9 +694,3 @@ putscr
 	
 
 	
-	include	"sd.asm"
-
-
-END	*
-	
-	end	prestart

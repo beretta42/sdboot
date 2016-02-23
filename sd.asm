@@ -9,7 +9,11 @@
 ;;;    * LSN address is always in 512B sectors nos.
 ;;;
 
-
+	export	DPTR
+	export	LSN
+	export	SMALL
+	export	ll_read
+	export	ll_init
 
 EIO		equ     1	; Error on Read
 EWP		equ	2	; Error on Write Protect
@@ -18,11 +22,11 @@ IntMasks	equ	$50     ; shut off firq,irq interrupts
 HwBase		equ	$ff64	; hardware base address
 Carry		equ	$1	; CC's carry bit
 
-
+	.area	.bss
 ;;; Public interface variables
 DPTR		rmb	2	; data address
 LSN		rmb	3	; 24 bit lsn :(
-SMALL		.db	0	; 0=512B read, 1=256B read, -1=256B 2nd 1/2 read
+SMALL		rmb	1	; 0=512B read, 1=256B read, -1=256B 2nd 1/2 read
 
 ;;; Internal interface
 SDVersion       RMB     1	; 0 = Byte Addressable SD
@@ -31,7 +35,7 @@ CMDStorage      RMB     1       ; Command storage area for read/write CMDs
 SD_SEC_ADD      RMB     4       ; Four bytes - some devices are byte addressable
 CMDCRC          RMB     1       ; CRC
 
-
+	.area .code
 ;;; A Table of pre-done 6 byte commands
 ;;;   This is const
 CMD0     fcb   $40,$00,$00,$00,$00,$95

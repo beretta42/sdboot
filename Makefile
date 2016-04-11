@@ -1,8 +1,11 @@
 # A Makefile for booting os9
 
 
-all: boot.dsk
+all: boot.dsk rom.img
 
+
+rom.img: rom.asm
+	lwasm -fraw -orom.img -mrom.map rom.asm
 
 boot.dsk: test.bin AUTOEXEC.BAS
 	rm -f boot.dsk
@@ -22,4 +25,4 @@ test.bin: boot.asm sd.asm test.lnk
 
 
 clean: 
-	rm -f boot.dsk boot.bin *.o test.bin
+	rm -f boot.dsk boot.bin *.o test.bin rom.img

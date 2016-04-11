@@ -187,6 +187,8 @@ merge	lda     SPIDAT,x        ; Send 1 FF
 * Exit:
 * Registers preserved: all but A/B/X
 cmdsend
+	lda	    ,y
+	sta         $FF66
 	ldb         #6
 a@	lda         ,y+
 	sta         SPIDAT,x
@@ -316,7 +318,6 @@ a@
 *
 
 ll_init
-	clr	$ffd9 		; super speed fix.
 	orcc    #IntMasks       ; disable interrupts
 	ldx     #HwBase		; load x with the hw address for the IRQ routine
 	lda     SPISTAT,x
@@ -356,16 +357,20 @@ CRD0	lda     #SPI_EN+SLOT_SEL_0 ; Enable SPI and lower CS
 	bne     SDV1
 	lda     SPIDAT,x        ; Byte 1 of R3/R7, through it away
 	nop
-	nop                     
+	nop
+	nop
 	lda     SPIDAT,x    	; Byte 2 of R3/R7, throught it away
+	nop
 	nop
 	nop
 	lda     SPIDAT,x        ; Byte 3 of R3/R7, should be 1
 	cmpa    #$01            ; 2 cycles
 	bne     NOTRDY          ; 2 cycles
+	nop
 	lda     SPIDAT,x        ; Byte 4 of R3/R7, should be $AA
 	cmpa    #$AA            ; 2 cycles
 	bne     NOTRDY          ; 2 cycles
+	nop
 	;; Send ACMD41 by first CMD55
 loop41V2
         lda     SPIDAT,x        ; Send 1 FF

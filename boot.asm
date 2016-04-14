@@ -157,6 +157,8 @@ b@	jsr	testload	; load os9boot into memory
 	ldx	#$f000
 	jsr	fload		; load ccbkrn into memory
 	jsr	putCR
+	;; done with disk go high speed :(
+	clr	$ffd9
 	;; clear out DP page
 	ldx	#0
 	clrb

@@ -62,6 +62,7 @@ start
 	orcc	#$50		; shut off interrupts
 	clr	$ffa0		; set mmu bank 0 to phys 0
 	clr	$ffdf		; set SAM RAM mode
+	clr	$ffd9		; high speed poke
 	;; clear ram vars
 	ldx	#start.bss
 a@	clr	,x+
